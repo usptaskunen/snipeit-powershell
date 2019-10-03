@@ -13,7 +13,7 @@ $CSV= @();
 
 # Import all CSV-files inside the folder into an array
 Get-ChildItem -Path $CSVFolder -Filter *.csv | ForEach-Object { 
-    $CSV += @(Import-Csv -Path $_)
+    $CSV += @(Import-Csv -Path $CSVFolder\$_)
 }
 
 # Merge the data to the target CSV-file
