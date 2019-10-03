@@ -20,46 +20,67 @@ $infoColl = @()
 Foreach ($s in $computers)
 {
 	#Get CPU Information
-    $CPUInfo = (gwmi win32_ComputerSystem).name 
+    $CPUInfo = (Get-WmiObject win32_ComputerSystem).name
+
     #Get OS Information
     $OSInfo = Get-WmiObject Win32_OperatingSystem -ComputerName $s #Get OS Information
-	#Get Memory Information. The data will be shown in a table as MB, rounded to the nearest second decimal.
+    
+    #Get Memory Information. The data will be shown in a table as MB, rounded to the nearest second decimal.
 	$OSTotalVirtualMemory = [math]::round($OSInfo.TotalVirtualMemorySize / 1MB, 2)
 	$OSTotalVisibleMemory = [math]::round(($OSInfo.TotalVisibleMemorySize / 1MB), 2)
+    
     # The Physical memory
-	$PhysicalMemory = Get-WmiObject CIM_PhysicalMemory -ComputerName $s | Measure-Object -Property capacity -Sum | % { [Math]::Round(($_.sum / 1GB), 2) }
-	# Get the serial number from BIOS
-    $SN = (gwmi win32_bios).serialnumber 
-	$AT = (gwmi win32_bios).serialnumber
+	$PhysicalMemory = Get-WmiObject CIM_PhysicalMemory -ComputerName $s | Measure-Object -Property capacity -Sum | ForEach-Object { [Math]::Round(($_.sum / 1GB), 2) }
+    
+    # Get the serial number from BIOS
+    $SN = (Get-WmiObject win32_bios).serialnumber 
+	$AT = (Get-WmiObject win32_bios).serialnumber
+    
     # Check when the computer was installed
-	$ID = Get-CimInstance Win32_OperatingSystem | Select-Object  InstallDate | ForEach{ $_.InstallDate }
+	$ID = Get-CimInstance Win32_OperatingSystem | Select-Object  InstallDate | ForEach-Object{ $_.InstallDate }
+    
     # Check the model name
     $MN = (Get-WmiObject -Class:Win32_ComputerSystem).Model
+    
     # Define status as 'Ready to Deploy'
     $status = "Ready to Deploy"
+    
     # Define Category
     $CG = "Windows Computers"
+    
     # Is this used?
     $FN = (Get-WmiObject -Class:Win32_ComputerSystem).Model
+    
     # The user logged in (if run inside Computer-context, will always return the computer name)
+    # Also, not used
     $user = whoami
+    
     # The Manufacturer from BIOS
-    $MF = (gwmi win32_bios).manufacturer
+    $MF = (Get-WmiObject win32_bios).manufacturer
+    
     # FileName Serial Number
-    $FNSN = (gwmi win32_bios).serialnumber 
+    $FNSN = (Get-WmiObject win32_bios).serialnumber 
+    
     # Pull the IP address
     $IP = (Test-Connection $CPUInfo -count 1).IPv4Address.IPAddressToString
+    
     # Check the disk space
-    $DISKTOTAL = Get-CimInstance win32_logicaldisk | where caption -eq "C:" | foreach-object {write " $('{0:N2}' -f ($_.Size/1gb)) GB "}
-    $DISKFREE = Get-CimInstance win32_logicaldisk | where caption -eq "C:" | foreach-object {write " $('{0:N2}' -f ($_.FreeSpace/1gb)) GB "}
+    $DISKTOTAL = Get-CimInstance win32_logicaldisk | Where-Object caption -eq "C:" | foreach-object {Write-Output " $('{0:N2}' -f ($_.Size/1gb)) GB "}
+    $DISKFREE = Get-CimInstance win32_logicaldisk | Where-Object caption -eq "C:" | foreach-object {Write-Output " $('{0:N2}' -f ($_.FreeSpace/1gb)) GB "}
+    
     # Pull the MAC Address of the computer
-    $MAC = (Get-WmiObject Win32_NetworkAdapterConfiguration | where {$_.ipenabled -EQ $true}).Macaddress | select-object -first 1
+    $MAC = (Get-WmiObject Win32_NetworkAdapterConfiguration | Where-Object {$_.ipenabled -EQ $true}).Macaddress | select-object -first 1
+
+    # Other variables populated..
     $strName = $env:username
     $strFilter = "(&(objectCategory=User)(samAccountName=$strName))"
+
     $objSearcher = New-Object System.DirectoryServices.DirectorySearcher
     $objSearcher.Filter = $strFilter
     $objPath = $objSearcher.FindOne()
     $objUser = $objPath.GetDirectoryEntry()
+    
+    # Get the last user of the computer
     $lastuser = ($objUser).cn | Select-Object
 
 

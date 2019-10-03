@@ -24,4 +24,4 @@ define using the $archivefolder parameter
 $CSVFolder = This is the folder where the asset CSV-files (to be merged) are located
 $ArchiveFolder = The folder you want the asset CSV-files to be archived to
 
-$OutputFile = LOCATION OF MERGED CSV FILE
+$OutputFile = Where you want to save the merged CSV file
