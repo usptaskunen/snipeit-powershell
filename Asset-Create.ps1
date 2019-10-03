@@ -10,28 +10,49 @@ The info will be exported to a csv format.
 #
 $computers = $Env:Computername
 #
+
+# Set the target path here
+# As an example \\inventory\snipeit-CSVs
+$targetpath = "\\EXAMPLE\TARGET\FOLDER"
+
+# The information collection part here
 $infoColl = @()
 Foreach ($s in $computers)
 {
-	$CPUInfo = (gwmi win32_ComputerSystem).name #Get CPU Information
+	#Get CPU Information
+    $CPUInfo = (gwmi win32_ComputerSystem).name 
+    #Get OS Information
     $OSInfo = Get-WmiObject Win32_OperatingSystem -ComputerName $s #Get OS Information
 	#Get Memory Information. The data will be shown in a table as MB, rounded to the nearest second decimal.
 	$OSTotalVirtualMemory = [math]::round($OSInfo.TotalVirtualMemorySize / 1MB, 2)
 	$OSTotalVisibleMemory = [math]::round(($OSInfo.TotalVisibleMemorySize / 1MB), 2)
+    # The Physical memory
 	$PhysicalMemory = Get-WmiObject CIM_PhysicalMemory -ComputerName $s | Measure-Object -Property capacity -Sum | % { [Math]::Round(($_.sum / 1GB), 2) }
-	$SN = (gwmi win32_bios).serialnumber 
+	# Get the serial number from BIOS
+    $SN = (gwmi win32_bios).serialnumber 
 	$AT = (gwmi win32_bios).serialnumber
+    # Check when the computer was installed
 	$ID = Get-CimInstance Win32_OperatingSystem | Select-Object  InstallDate | ForEach{ $_.InstallDate }
+    # Check the model name
     $MN = (Get-WmiObject -Class:Win32_ComputerSystem).Model
+    # Define status as 'Ready to Deploy'
     $status = "Ready to Deploy"
+    # Define Category
     $CG = "Windows Computers"
+    # Is this used?
     $FN = (Get-WmiObject -Class:Win32_ComputerSystem).Model
+    # The user logged in (if run inside Computer-context, will always return the computer name)
     $user = whoami
+    # The Manufacturer from BIOS
     $MF = (gwmi win32_bios).manufacturer
-    $FNSN = (gwmi win32_bios).serialnumber # FileName Serial Number
+    # FileName Serial Number
+    $FNSN = (gwmi win32_bios).serialnumber 
+    # Pull the IP address
     $IP = (Test-Connection $CPUInfo -count 1).IPv4Address.IPAddressToString
+    # Check the disk space
     $DISKTOTAL = Get-CimInstance win32_logicaldisk | where caption -eq "C:" | foreach-object {write " $('{0:N2}' -f ($_.Size/1gb)) GB "}
     $DISKFREE = Get-CimInstance win32_logicaldisk | where caption -eq "C:" | foreach-object {write " $('{0:N2}' -f ($_.FreeSpace/1gb)) GB "}
+    # Pull the MAC Address of the computer
     $MAC = (Get-WmiObject Win32_NetworkAdapterConfiguration | where {$_.ipenabled -EQ $true}).Macaddress | select-object -first 1
     $strName = $env:username
     $strFilter = "(&(objectCategory=User)(samAccountName=$strName))"
@@ -71,4 +92,6 @@ Foreach ($s in $computers)
 		$infoColl += $infoObject
 	}
 }
-$infoColl | Export-Csv -path \\NETWORKSHARE\$FNSN.csv  -NoTypeInformation -Encoding UTF8 #Export the results in csv file.
+
+#Export the results in csv file.
+$infoColl | Export-Csv -path $targetpath\$FNSN.csv  -NoTypeInformation -Encoding UTF8 
