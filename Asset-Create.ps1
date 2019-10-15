@@ -1,8 +1,8 @@
 <#
 .SYNOPSIS
-Collect stats from a windows PC and generate a csv file, then export the csv to a newtwork share.
+Collects system information from a Windows PC and generates a csv file to a target location, defined with $targetpath.
 .DESCRIPTION
-This script will get the memory usage statistics OS configuration of any Server or Computer, generate a CSV file and export the csv to a network share.
+This script will get modelname, -number
 .NOTES  
 The script will execute the commands on machines sequentially using non-concurrent sessions.
 The info will be exported to a csv format.
@@ -32,7 +32,7 @@ Foreach ($s in $computers)
     $SysName = (Get-WmiObject win32_ComputerSystem).name
 
     #Get OS Information
-    $OSInfo = Get-WmiObject Win32_OperatingSystem -ComputerName $s #Get OS Information
+    $OSInfo = Get-WmiObject Win32_OperatingSystem -ComputerName $s 
     
     #Get Memory Information. The data will be shown in a table as MB, rounded to the nearest second decimal.
 	$OSTotalVirtualMemory = [math]::round($OSInfo.TotalVirtualMemorySize / 1MB, 2)
