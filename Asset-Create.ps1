@@ -6,10 +6,19 @@ This script will get the memory usage statistics OS configuration of any Server 
 .NOTES  
 The script will execute the commands on machines sequentially using non-concurrent sessions.
 The info will be exported to a csv format.
+
+You need to replace the $targetpath variable to output to your desired folder
 #>
 #
 $computers = $Env:Computername
 #
+
+function Get-LastUser {
+    # Let's get the Last login
+    Get-WmiObject -Class Win32_NetworkLoginProfile | 
+    Sort-Object -Property LastLogon -Descending | 
+    Select-Object -Property * -First 1
+}
 
 # Set the target path here
 # As an example \\inventory\snipeit-CSVs
@@ -20,7 +29,7 @@ $infoColl = @()
 Foreach ($s in $computers)
 {
 	#Get CPU Information
-    $CPUInfo = (Get-WmiObject win32_ComputerSystem).name
+    $SysName = (Get-WmiObject win32_ComputerSystem).name
 
     #Get OS Information
     $OSInfo = Get-WmiObject Win32_OperatingSystem -ComputerName $s #Get OS Information
@@ -33,8 +42,10 @@ Foreach ($s in $computers)
 	$PhysicalMemory = Get-WmiObject CIM_PhysicalMemory -ComputerName $s | Measure-Object -Property capacity -Sum | ForEach-Object { [Math]::Round(($_.sum / 1GB), 2) }
     
     # Get the serial number from BIOS
-    $SN = (Get-WmiObject win32_bios).serialnumber 
-	$AT = (Get-WmiObject win32_bios).serialnumber
+    $SN = (Get-WmiObject win32_bios).serialnumber
+
+    # Get the System SKU if applicable, this might not work on all Manufacturers
+    $SKU = (Get-WmiObject win32_ComputerSystem).SystemSKUNumber
     
     # Check when the computer was installed
 	$ID = Get-CimInstance Win32_OperatingSystem | Select-Object  InstallDate | ForEach-Object{ $_.InstallDate }
@@ -48,21 +59,11 @@ Foreach ($s in $computers)
     # Define Category
     $CG = "Windows Computers"
     
-    # Is this used?
-    $FN = (Get-WmiObject -Class:Win32_ComputerSystem).Model
-    
-    # The user logged in (if run inside Computer-context, will always return the computer name)
-    # Also, not used
-    $user = whoami
-    
     # The Manufacturer from BIOS
     $MF = (Get-WmiObject win32_bios).manufacturer
     
-    # FileName Serial Number
-    $FNSN = (Get-WmiObject win32_bios).serialnumber 
-    
     # Pull the IP address
-    $IP = (Test-Connection $CPUInfo -count 1).IPv4Address.IPAddressToString
+    $IP = (Test-Connection $SysName -count 1).IPv4Address.IPAddressToString
     
     # Check the disk space
     $DISKTOTAL = Get-CimInstance win32_logicaldisk | Where-Object caption -eq "C:" | foreach-object {Write-Output " $('{0:N2}' -f ($_.Size/1gb)) GB "}
@@ -70,33 +71,23 @@ Foreach ($s in $computers)
     
     # Pull the MAC Address of the computer
     $MAC = (Get-WmiObject Win32_NetworkAdapterConfiguration | Where-Object {$_.ipenabled -EQ $true}).Macaddress | select-object -first 1
-
-    # Other variables populated..
-    $strName = $env:username
-    $strFilter = "(&(objectCategory=User)(samAccountName=$strName))"
-
-    $objSearcher = New-Object System.DirectoryServices.DirectorySearcher
-    $objSearcher.Filter = $strFilter
-    $objPath = $objSearcher.FindOne()
-    $objUser = $objPath.GetDirectoryEntry()
     
     # Get the last user of the computer
-    $lastuser = ($objUser).cn | Select-Object
+    $lastuser = Get-LastUser
 
 
-    Foreach ($CPU in $CPUInfo)
+    Foreach ($CPU in $SysName)
 	{
 		$infoObject = New-Object PSObject
 		#The following add data to the infoObjects.	
-		Add-Member -inputObject $infoObject -memberType NoteProperty -name "Item Name" -value $CPUInfo
+		Add-Member -inputObject $infoObject -memberType NoteProperty -name "Item Name" -value $SysName
 		Add-Member -inputObject $infoObject -memberType NoteProperty -name "OS" -value $OSInfo.Caption
 		Add-Member -inputObject $infoObject -memberType NoteProperty -name "Total Physical Memory" -value $PhysicalMemory
 		Add-Member -inputObject $infoObject -memberType NoteProperty -name "Total Virtual Memory" -value $OSTotalVirtualMemory
-		Add-Member -inputObject $infoObject -memberType NoteProperty -name "Total Visable Memory" -value $OSTotalVisibleMemory
+		Add-Member -inputObject $infoObject -memberType NoteProperty -name "Total Visible Memory" -value $OSTotalVisibleMemory
 		Add-Member -inputObject $infoObject -memberType NoteProperty -name "Serial Number" -value $SN
-		Add-Member -inputObject $infoObject -memberType NoteProperty -name "Asset Tag" -value $AT
 		Add-Member -inputObject $infoObject -memberType NoteProperty -name "OS Install Date" -value $ID
-        Add-Member -inputObject $infoObject -memberType NoteProperty -name "Model Number" -value $MN
+        Add-Member -inputObject $infoObject -memberType NoteProperty -name "Model Number" -value $SKU
         Add-Member -inputObject $infoObject -memberType NoteProperty -name "Model Name" -value $MN
         Add-Member -inputObject $infoObject -memberType NoteProperty -name "Category" -value $CG
         Add-Member -inputObject $infoObject -memberType NoteProperty -name "Status" -value $status
@@ -105,9 +96,7 @@ Foreach ($s in $computers)
         Add-Member -inputObject $infoObject -memberType NoteProperty -name "Total Disk Space" -value $DISKTOTAL
         Add-Member -inputObject $infoObject -memberType NoteProperty -name "Free Disk Space" -value $DISKFREE
         Add-Member -inputObject $infoObject -memberType NoteProperty -name "MAC Address" -value $MAC
-        Add-Member -inputObject $infoObject -memberType NoteProperty -name "Last User" -value $lastuser
-        
-
+        Add-Member -inputObject $infoObject -memberType NoteProperty -name "Last User" -value $lastuser.FullName
 
         $infoObject #Output to the screen for a visual feedback.
 		$infoColl += $infoObject
@@ -115,4 +104,4 @@ Foreach ($s in $computers)
 }
 
 #Export the results in csv file.
-$infoColl | Export-Csv -path $targetpath\$FNSN.csv  -NoTypeInformation -Encoding UTF8 
+$infoColl | Export-Csv -path $targetpath\$SysName.csv  -NoTypeInformation -Encoding UTF8 
