@@ -26,3 +26,7 @@ define using the $archivefolder parameter
 * $CSVFolder = This is the folder where the asset CSV-files (to be merged) are located.
 * $ArchiveFolder = The folder you want the asset CSV-files to be archived to
 * $OutputFile = Where you want to save the merged CSV file
+
+## Instructions for creating a GPO
+I've added instructions on how to create a GPO and enable the script
+in a AD domain environment [the instructions are here](GPO.md)
