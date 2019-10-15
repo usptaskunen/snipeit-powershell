@@ -61,3 +61,25 @@ Scheduled Tasks. Right-click in the empty field and click New - Scheduled Task (
   - New
     - Start a program
     - Program/Script: \\domainController\NETLOGON\sample-run-script.cmd
+
+
+## Link the GPO
+
+Assuming you have never done anything with GPOs, you need to link the policy.
+I prefer creating a Organizational Unit for testing purposes, where you put
+your computer accounts you are going to test with. I recommend this, as it 
+won't affect other computers if there happens to be a malfunction in the script.
+
+Now I'm going to assume you have an OU ready for this, you traverse the Domain tree
+inside the GPMC and find your target OU. Right-click on the OU, select "Link an
+Existing GPO..." and find your new Policy from the selection box. After this, the
+script should start applying.
+
+Things to keep in mind
+- GPO Refresh is 15 minutes on default
+- Domain Controller synchronization interval is 15 minutes at minimum
+
+If you want the GPO to apply faster, you can run "repadmin /syncall" on domain controllers
+after you've added the policy, then run gpupdate /force on your target computer. You can
+check if the policy is getting applied with gpresult /r, but in order to see the applied
+computer policies, you need to use an elevated command prompt.
